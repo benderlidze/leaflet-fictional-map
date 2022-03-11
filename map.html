@@ -38,7 +38,7 @@
     <div id='map'></div>
     <script>
 
-        const imageSquareSize = 10144;
+        const imageSquareSize = 9560;
 
         //for development only 
         const params = new Proxy(new URLSearchParams(window.location.search), {
@@ -82,15 +82,13 @@
         // assign map and image dimensions
         map.setView(rc.unproject([img.x / 2, img.y / 2]), 2)
 
-        const tileLayer = L.tileLayer('https://serg.one/leaflet-fictional-map/{z}/{x}/{y}.png', {
+        const tileLayer = L.tileLayer('tiles/new/{z}/{x}/{y}.png', {
             noWrap: true,
             preferCanvas: true,
             bounds: mapBounds
         }).addTo(map)
 
         L.control.zoom({ position: 'topright' }).addTo(map);
-
-
         const label = L.marker(rc.unproject([img.x / 2, img.y / 2])).addTo(map)
 
 
