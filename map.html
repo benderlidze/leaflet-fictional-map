@@ -39,6 +39,8 @@
     <script>
 
         const imageSquareSize = 9560;
+        const cellSideSize = 91;
+        const centerCell = 53;
 
         //for development only 
         const params = new Proxy(new URLSearchParams(window.location.search), {
@@ -81,8 +83,9 @@
 
         // assign map and image dimensions
         map.setView(rc.unproject([img.x / 2, img.y / 2]), 2)
+        map.setZoom(6)
 
-        const tileLayer = L.tileLayer('tiles/new/{z}/{x}/{y}.png', {
+        const tileLayer = L.tileLayer('https://serg.one/leaflet-fictional-map/{z}/{x}/{y}.png', {
             noWrap: true,
             preferCanvas: true,
             bounds: mapBounds
@@ -91,6 +94,151 @@
         L.control.zoom({ position: 'topright' }).addTo(map);
         const label = L.marker(rc.unproject([img.x / 2, img.y / 2])).addTo(map)
 
+
+
+        map.on("click", e => {
+            const c = rc.project(e.latlng);
+            console.log('c', e.latlng, c);
+            const { x, y } = c
+            const coords = createCoordinatesByXY([x, y], 0)
+
+            const { row, col } = getIdByCoordinates(x, y)
+
+            const ne = rc.unproject(coords[0])
+            const sw = rc.unproject(coords[2])
+
+            const [_x, _y] = getCoordsByRowCol(row, col);
+            const poly = createCoordinatesByXY([_x, _y], true)
+            drawPolygon({ coords: poly, corners: true })
+
+
+        })
+
+
+
+
+        function rowColToCoords(input) {
+            const center = {
+                x: img.x / 2, y: img.y / 2
+            }
+            const mapCoords = [
+                center.x + cellSideSize * input[0],
+                center.y - cellSideSize * input[1],
+            ]
+            return mapCoords
+        }
+        function coordsToRowCol(input) {
+            //x32400/y30800
+
+            const center = {
+                x: img.x / 2, y: img.y / 2
+            }
+            const mapCoords = [
+                Math.floor((center.x - input[0]) / cellSideSize) * (-1),
+                Math.floor((center.y - input[1]) / cellSideSize),
+            ]
+            return mapCoords
+        }
+
+        function addMarkerToGroup({ topLeft, logo }) {
+
+            const latLng = rc.unproject(topLeft)
+            const LeafIcon = L.Icon.extend({
+                options: {
+                    iconSize: [38, 40],
+                    iconAnchor: [19, 20],
+                    popupAnchor: [77, 77]
+                }
+            });
+            const gIcon = new LeafIcon({ iconUrl: logo });
+            const gMarker = L.marker(latLng, { icon: gIcon }).addTo(map).on('click', () => {
+                console.log('click marker',);
+            })
+
+            return gMarker;
+        }
+
+        function findTopLeftCorner(flat) {
+            const sort = flat.sort((a, b) => {
+                return (a[1] - b[1] || a[0] - b[0]);
+            })
+            return sort[0]
+        }
+
+        function createCoordinatesByXY([x1, y1], offset = 0) {
+
+            const innerOffset = offset
+            const x = Math.floor(x1 / cellSideSize) * cellSideSize
+            const y = Math.floor(y1 / cellSideSize) * cellSideSize
+            return [
+                [x + innerOffset, y + innerOffset],
+                [x + cellSideSize - innerOffset, y + innerOffset],
+                [x + cellSideSize - innerOffset, y + cellSideSize - innerOffset],
+                [x + innerOffset, y + cellSideSize - innerOffset],
+                [x + innerOffset, y + innerOffset],
+            ]
+        }
+
+        function getIdByCoordinates(x1, y1, debug = false) {
+            const x = Math.floor(x1 / cellSideSize)
+            const y = Math.floor(y1 / cellSideSize)
+            const row = - centerCell + x;
+            const col = centerCell - y;
+
+            console.log('row,col', row, col);
+
+            return { row, col }
+        }
+
+        function getCoordsByRowCol(row, col) {
+            const x = (centerCell + Number(row)) * cellSideSize;
+            const y = (centerCell - Number(col)) * cellSideSize;
+            return [x, y]
+        }
+
+        function drawPolygon({
+            coords,
+            color = "white",
+            dashArray = false,
+            corners = false,
+            weight = 2
+        }) {
+
+            const unpCoords = coords.map(c => {
+                return rc.unproject(c)
+            })
+
+            if (corners) {
+                const cornerMarkers = unpCoords.map(c => {
+                    return L.marker(c, {
+                        icon: L.divIcon({
+                            className: 'corner-select-dot',   // Set class for CSS styling
+                            html: "",
+                            iconSize: new L.Point(4, 4),
+                        }),
+                        zIndexOffset: 1000
+                    }).addTo(map)
+                })
+            }
+
+            const polygon = L.polygon(unpCoords, {
+                color,
+                weight: weight,
+                "fillOpacity": 0,
+                dashArray: dashArray ? dashArray : '',
+            });
+            polygon.addTo(map);
+
+            return {
+                lPoly: polygon,
+                json: unpCoords
+            }
+        }
+
+        function unproject(arr) {
+            const { lat, lng } = rc.unproject(arr)
+            return [lng, lat]
+        }
 
     </script>
 </body>
